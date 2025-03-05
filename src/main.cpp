@@ -80,13 +80,19 @@ int main(int argc, char* argv[]) {
     Kafka parser{buf};
     
     Kafka_parser Kaf_par = parser.parser( buf);
+
    
     int value = htonl(0);
     int value1  = htonl(Kaf_par.correlation_id);
+    int error_code = htons(35);
+
+    if(Kaf_par.request_api_version >= 0 && Kaf_par.request_api_version <= 4) error_code = htons(0);
 
     write(client_fd,&value,4);
 
     write(client_fd,&value1, 4);
+
+    write(client_fd,&error_code,2);
 
 
 
