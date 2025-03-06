@@ -58,7 +58,7 @@ void handle_client(int client_fd){
     send(client_fd, &be_throttle_time_ms, sizeof(be_throttle_time_ms), 0);
     send(client_fd, &no_tags, sizeof(no_tags), 0);
     }
-    //close(client_fd);
+    close(client_fd);
     return ;
 }
 
@@ -110,24 +110,23 @@ int main(int argc, char* argv[]) {
     // Uncomment this block to pass the first stage
 
     // 
-        struct sockaddr_in client_addr{};
+
+    while(true){
+
+         struct sockaddr_in client_addr{};
     socklen_t client_addr_len = sizeof(client_addr);
  // ?
     int client_fd = accept(server_fd, reinterpret_cast<struct sockaddr*>(&client_addr), &client_addr_len);
     std::cout << "Client connected\n";
 
-    while(true){
-
-    //std::thread th(handle_client,client_fd);
     if (client_fd < 0) {
       std::cerr << "Accept failed" << std::endl;
       continue;
     }
-
-    handle_client(client_fd);
-    //th.detach();
+    std::thread th(handle_client,client_fd);
+    //handle_client(client_fd);
+    th.detach();
     }
-    close(client_fd);
     close(server_fd);
 
 
