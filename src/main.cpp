@@ -11,7 +11,56 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include<thread>
+
 #include "Kafka.hpp"
+
+
+void handle_client(int client_fd){
+    while(true){
+    //std :: cout << "Client is :"  << client_fd << std :: endl;
+    char buf[1024] ;
+    int recieved_status =recv(client_fd,buf,sizeof(buf),0);
+    //std :: cout << "here" << std :: endl; 
+    if(recieved_status <= 0){
+        //std:: cout << "Error receiving bytes"  << std::endl;
+        break;
+    }
+    Kafka parser{buf};
+    
+    Kafka_parser Kaf_par = parser.parser( buf);
+   
+    int value = htonl(1);
+    int16_t be_error_code = htons(35);
+    uint8_t api_keys_length = 0x02; // compact array length for 1 element
+    int16_t be_api_key = htons(18);
+    int16_t be_min_version = htons(0);
+    int16_t be_max_version = htons(4);
+    int32_t be_throttle_time_ms = htonl(0);
+    uint8_t no_tags = 0x00; // no tagged fields
+    uint8_t api_key_tags = 0x00; // no tags for this ApiKey entry
+    // Calculate message_size: correlation_id(4) + error_code(2) + api_keys_length(1)
+    // + (api_key+min_version+max_version=6 bytes) + throttle_time_ms(4) + no_tags(1)
+    // = 4 + 2 + 1 + 6 + 4 + 1 = 18 bytes total after the length field
+    if(Kaf_par.request_api_version >= 0 && Kaf_par.request_api_version <= 4) be_error_code = htons(0);
+    int32_t message_size = htonl(19);
+    // Send response:
+    // Note: correlation_id must be sent back in network order
+    int32_t be_correlation_id = htonl(Kaf_par.correlation_id);
+    send(client_fd, &message_size, sizeof(message_size), 0);
+    send(client_fd, &be_correlation_id, sizeof(be_correlation_id), 0);
+    send(client_fd, &be_error_code, sizeof(be_error_code), 0);
+    send(client_fd, &api_keys_length, sizeof(api_keys_length), 0);
+    send(client_fd, &be_api_key, sizeof(be_api_key), 0);
+    send(client_fd, &be_min_version, sizeof(be_min_version), 0);
+    send(client_fd, &be_max_version, sizeof(be_max_version), 0);
+    send(client_fd, &api_key_tags, sizeof(api_key_tags), 0);
+    send(client_fd, &be_throttle_time_ms, sizeof(be_throttle_time_ms), 0);
+    send(client_fd, &no_tags, sizeof(no_tags), 0);
+    }
+    //close(client_fd);
+    return ;
+}
 
 
 int main(int argc, char* argv[]) {
@@ -54,64 +103,33 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Waiting for a client to connect...\n";
 
-    struct sockaddr_in client_addr{};
-    socklen_t client_addr_len = sizeof(client_addr);
 
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     std::cerr << "Logs from your program will appear here!\n";
     
     // Uncomment this block to pass the first stage
+
     // 
+        struct sockaddr_in client_addr{};
+    socklen_t client_addr_len = sizeof(client_addr);
+ // ?
     int client_fd = accept(server_fd, reinterpret_cast<struct sockaddr*>(&client_addr), &client_addr_len);
     std::cout << "Client connected\n";
 
+    while(true){
 
-
-    char buf[1024] ;
-    int buf_value[1024];
-    int recieved_status =recv(client_fd,buf,sizeof(buf),0);
-
-    //std :: cout << "here" << std :: endl; 
-    if(recieved_status <= 0){
-        std:: cout << "Error receiving bytes"  << std::endl;
-        return 1;
+    //std::thread th(handle_client,client_fd);
+    if (client_fd < 0) {
+      std::cerr << "Accept failed" << std::endl;
+      continue;
     }
-    
-    Kafka parser{buf};
-    
-    Kafka_parser Kaf_par = parser.parser( buf);
 
-   
-    int value = htonl(1);
-
-    int16_t be_error_code = htons(35);
-    uint8_t api_keys_length = 0x02; // compact array length for 1 element
-    int16_t be_api_key = htons(18);
-    int16_t be_min_version = htons(0);
-    int16_t be_max_version = htons(4);
-    int32_t be_throttle_time_ms = htonl(0);
-    uint8_t no_tags = 0x00; // no tagged fields
-    uint8_t api_key_tags = 0x00; // no tags for this ApiKey entry
-    // Calculate message_size: correlation_id(4) + error_code(2) + api_keys_length(1)
-    // + (api_key+min_version+max_version=6 bytes) + throttle_time_ms(4) + no_tags(1)
-    // = 4 + 2 + 1 + 6 + 4 + 1 = 18 bytes total after the length field
-    if(Kaf_par.request_api_version >= 0 && Kaf_par.request_api_version <= 4) be_error_code = htons(0);
-    int32_t message_size = htonl(19);
-    // Send response:
-    // Note: correlation_id must be sent back in network order
-    int32_t be_correlation_id = htonl(Kaf_par.correlation_id);
-    send(client_fd, &message_size, sizeof(message_size), 0);
-    send(client_fd, &be_correlation_id, sizeof(be_correlation_id), 0);
-    send(client_fd, &be_error_code, sizeof(be_error_code), 0);
-    send(client_fd, &api_keys_length, sizeof(api_keys_length), 0);
-    send(client_fd, &be_api_key, sizeof(be_api_key), 0);
-    send(client_fd, &be_min_version, sizeof(be_min_version), 0);
-    send(client_fd, &be_max_version, sizeof(be_max_version), 0);
-    send(client_fd, &api_key_tags, sizeof(api_key_tags), 0);
-    send(client_fd, &be_throttle_time_ms, sizeof(be_throttle_time_ms), 0);
-    send(client_fd, &no_tags, sizeof(no_tags), 0);
-
+    handle_client(client_fd);
+    //th.detach();
+    }
+    close(client_fd);
     close(server_fd);
-    
+
+
     return 0;
 }

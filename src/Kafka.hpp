@@ -11,15 +11,15 @@ struct Kafka_parser {
 
 class Kafka {
     private :
-    int* buffer ;
+    int* buffer;
 
     public :
     ~Kafka(){
         delete buffer ;
     };
     Kafka(char buf[1024]){
-        buffer = (int*)malloc(sizeof(int)*305);
-        for(int i = 0 ;i < 1023 ;i ++){
+        buffer = (int*)malloc(sizeof(int)*1025);
+        for(int i = 0 ;i < 1024 ;i ++){
             *(buffer +i) = (int)(buf[i]);
         }
     }
