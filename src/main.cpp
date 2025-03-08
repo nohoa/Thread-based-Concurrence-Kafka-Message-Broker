@@ -33,7 +33,7 @@ void handle_client(int client_fd){
     Kafka_parser Kaf_par = parser.parser( buf);
    
     int value = htonl(1);
-    int16_t be_error_code = htons(35); 
+    int16_t be_error_code = htons(3); 
     uint8_t api_keys_length = 0x03; // compact array length for 2 element
     int16_t be_api_key = htons(18);
     int16_t be_min_version = htons(0); // 2
@@ -48,37 +48,110 @@ void handle_client(int client_fd){
 
     int16_t topic_max_version = htons(0); // 2
 
+    uint8_t unknow_topic_keys_length = 0x02; 
+
     uint8_t topic_key_tags = 0x00;
 
-    if(Kaf_par.request_api_version >= 0 && Kaf_par.request_api_version <= 4) be_error_code = htons(0);
+    uint32_t topic_id = 0x00;
+
+    uint16_t inter_topic_id = 0x00;
+
+    uint8_t topic_id_left = 0x00;
+
+    uint8_t is_internal = 0x00;
+
+    std::string topic_name = Kaf_par.topic_name;
+
+
+    uint8_t topic_message_size = topic_name.length();
+
+
+    //std :: cout << "size is " << topic_message_size << std::endl;
+
+    int32_t topic_authorization = 0x00;
+
+    uint8_t partition_arr = 0x01;
+
+    uint8_t nex_cursor = 0xff;
+
+   //std::string tp_name = Kaf_par.topic_name;
+
+
+
+   // if(Kaf_par.request_api_version >= 0 && Kaf_par.request_api_version <= 4) be_error_code = htons(0);
 
     int32_t be_correlation_id = htonl(Kaf_par.correlation_id);
     // Calculate message size : correlation id(4) + error_code(2)+array length(1) + 2*(size_of_request = 7 = 
     //api_key(2)+min_support_version(2)+max_support_version(2)+tag_buffer(1)) + throttle_time(4) + tag_buffer(1) =
     // 4 +2 +1 + 2*7+4+1 =26 
-    int32_t message_size = htonl(26); // handle APIVersion Request and Describe Topic request bit 
+    if(topic_name != ""){
+    int32_t message_size = htonl(55); // handle APIVersion Request and Describe Topic request bit 
     // Send response:
     // Note: correlation_id must be sent back in network order
-    std :: cout << std::hex << message_size << std :: endl;
+    //std :: cout << std::hex << message_size << std :: endl;
+    send(client_fd, &message_size, sizeof(message_size), 0); //4
+    send(client_fd, &be_correlation_id, sizeof(be_correlation_id), 0); // 4
+    //send(client_fd, &be_error_code, sizeof(be_error_code), 0);
+
+   //send(client_fd, &api_keys_length, sizeof(api_keys_length), 0);
+
+//     send(client_fd, &be_api_key, sizeof(be_api_key), 0);
+//     send(client_fd, &be_min_version, sizeof(be_min_version), 0);
+//     send(client_fd, &be_max_version, sizeof(be_max_version), 0);
+//     send(client_fd, &api_key_tags, sizeof(api_key_tags), 0);
+     send(client_fd, &no_tags, sizeof(no_tags), 0); // 1
+
+//     send(client_fd, &topic_partition_key, sizeof(topic_partition_key), 0);
+//     send(client_fd,&topic_min_version,sizeof(topic_min_version),0);
+//     send(client_fd,&topic_max_version,sizeof(topic_max_version),0);
+//     send(client_fd,&topic_key_tags,sizeof(topic_key_tags),0);
+//     //send(client_fd, &no_tags, sizeof(no_tags), 0);
+     send(client_fd, &be_throttle_time_ms, sizeof(be_throttle_time_ms), 0); // 4
+     send(client_fd, &unknow_topic_keys_length, sizeof(unknow_topic_keys_length), 0); // 1 
+     send(client_fd, &be_error_code, sizeof(be_error_code), 0); // 2
+     send(client_fd,&topic_message_size,sizeof(topic_message_size),0); //1
+     send(client_fd,topic_name.c_str(),17,0); // 17
+
+     send(client_fd,&topic_id,sizeof(topic_id),0); // 4
+     send(client_fd,&topic_id,sizeof(topic_id),0); // 4
+     send(client_fd,&topic_id,sizeof(topic_id),0); // 4
+     send(client_fd,&topic_id,sizeof(topic_id),0); // 4
+     //send(client_fd,&topic_id,sizeof(topic_id),0);
+     //send(client_fd,&inter_topic_id,sizeof(inter_topic_id),0);  // 2
+    // send(client_fd,&topic_id_left,sizeof(topic_id_left),0); // 1
+     send(client_fd,&is_internal,sizeof(is_internal),0); // 1
+     send(client_fd,&partition_arr,sizeof(partition_arr),0); // 1
+     send(client_fd,&topic_authorization,sizeof(topic_authorization),0); // 4
+     send(client_fd, &no_tags, sizeof(no_tags), 0); // 1
+     send(client_fd,&nex_cursor,sizeof(nex_cursor),0); // 1
+     //send(client_fd,tp_name.c_str(),sizeof(tp_name.c_str()),0);
+     send(client_fd, &no_tags, sizeof(no_tags), 0); // 1
+//     send(client_fd, &no_tags, sizeof(no_tags), 0);
+    }
+    else {
+       int  message_size = htonl(26); // handle APIVersion Request and Describe Topic request bit 
+    // Send response:
+    // Note: correlation_id must be sent back in network order
+    //std :: cout << std::hex << message_size << std :: endl;
+    be_error_code = htons(35);
+    if(Kaf_par.request_api_version >= 0 && Kaf_par.request_api_version <= 4) be_error_code = htons(0);
     send(client_fd, &message_size, sizeof(message_size), 0);
     send(client_fd, &be_correlation_id, sizeof(be_correlation_id), 0); //
     send(client_fd, &be_error_code, sizeof(be_error_code), 0);
     send(client_fd, &api_keys_length, sizeof(api_keys_length), 0);
-
     send(client_fd, &be_api_key, sizeof(be_api_key), 0);
     send(client_fd, &be_min_version, sizeof(be_min_version), 0);
     send(client_fd, &be_max_version, sizeof(be_max_version), 0);
     send(client_fd, &api_key_tags, sizeof(api_key_tags), 0);
    // send(client_fd, &no_tags, sizeof(no_tags), 0);
-
     send(client_fd, &topic_partition_key, sizeof(topic_partition_key), 0);
     send(client_fd,&topic_min_version,sizeof(topic_min_version),0);
     send(client_fd,&topic_max_version,sizeof(topic_max_version),0);
     send(client_fd,&topic_key_tags,sizeof(topic_key_tags),0);
     //send(client_fd, &no_tags, sizeof(no_tags), 0);
-
     send(client_fd, &be_throttle_time_ms, sizeof(be_throttle_time_ms), 0);
     send(client_fd, &no_tags, sizeof(no_tags), 0);
+    }
     }
     close(client_fd);
     return ;

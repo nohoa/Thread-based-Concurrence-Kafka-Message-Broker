@@ -7,6 +7,8 @@ struct Kafka_parser {
     int request_api_key  = 0;
     int request_api_version = 0;
     int correlation_id = 0;
+
+    std :: string topic_name  = "";
 };
 
 class Kafka {

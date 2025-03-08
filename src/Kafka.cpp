@@ -1,6 +1,7 @@
 
 #include "Kafka.hpp"
 
+#include <string>
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -27,6 +28,13 @@ Kafka_parser Kafka :: parser(char *buf){
                 buffer[i] = buffer[i] & 0xff;
                // std :: cout 
                 new_parser.correlation_id = (new_parser.correlation_id << 8)|buffer[i];
+        }
+
+        int value = buffer[28];
+        //std :: cout << value << std:: endl;
+        if(value >= 80) return new_parser;
+        for(int i = 0 ;i < value ;i ++){
+                new_parser.topic_name += (char)(buffer[29+i]);
         }
         // std :: cout << new_parser.message_size<<std :: endl;
         // std :: cout << new_parser.request_api_key<<std :: endl;
