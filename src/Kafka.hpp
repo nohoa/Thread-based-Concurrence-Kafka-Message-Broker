@@ -26,6 +26,8 @@ class Kafka {
         }
     }
 
+    virtual bool contains(char*buf,int length, std:: string match);
+
     virtual Kafka_parser parser(char *buf);
 
 };

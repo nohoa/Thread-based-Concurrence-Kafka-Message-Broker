@@ -43,3 +43,26 @@ Kafka_parser Kafka :: parser(char *buf){
         
         return new_parser;
 }
+
+bool Kafka ::contains(char *buf, int length,std::string match){
+        int i = 0;
+        std :: cout << "inside" << std :: endl;
+        while(i < length){
+                if(buf[i] == match[0]){
+                        int cnt = 0 ;
+                        for(int j = 0 ;j < match.length() ;j ++){
+                                if(i+j < length && buf[i+j] == match[j]){
+                                        cnt ++;
+                                }
+                                else break;
+                        }
+                        if(cnt == match.length()) {
+                                //std :: cout << "match" << std :: endl;
+                                return true;
+                        }
+                }
+                i ++;
+        }
+        std :: cout << "outside ? " << std:: endl;
+        return false;
+}
