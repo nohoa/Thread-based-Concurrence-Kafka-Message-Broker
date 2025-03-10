@@ -22,11 +22,13 @@
 
 struct TopicMetadata {
   bool exists;
-  std::array<unsigned char, 16> uuid;
+  int cnt = 0 ;
+  std::vector< std::array<unsigned char, 16> >  uuid;
 };
 TopicMetadata get_topic_metadata(const std::string &topic_name) {
-  std::cout << "Checking metadata for topic: " << topic_name << std::endl;
-  TopicMetadata result = {false, {0}}; // Initialize with exists = false
+  std::cout << "Checking metadata for topic: " << topic_name << std::endl; 
+  //std::vector< std::array<unsigned char, 16> >  ls_uuid ;
+  TopicMetadata result = {false,0,{}}; // Initialize with exists = false
   // Read the entire metadata file
   std::ifstream file("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log", std::ios::binary);
   // std :: cout << "inside the file" << std::endl;
@@ -48,14 +50,19 @@ TopicMetadata get_topic_metadata(const std::string &topic_name) {
       // Found the topic name
       result.exists = true;
       if (i + topic_name.length() + 16 < metadata.size()) {
+        //std :: cout << "matched" << std::endl;
+        std::array<unsigned char, 16> ansuuid ;
         std::copy_n(metadata.begin() + i + topic_name.length(), 16,
-                    result.uuid.begin());
+                    ansuuid.begin());
+            result.cnt ++;
+        result.uuid.push_back(ansuuid);
         // std:: cout << "valid" << std::endl;
         // for(int i = 0 ;i < 16 ;i ++){
         //   std ::  cout <<  (int)(metadata[i + topic_name.length()]) <<" ";
         //   } 
+        //if(result.uuid.size() == 2) return result;
       }
-      return result;
+      //return result;
     }
   }
   // If we didn't find the topic, return with exists = false
@@ -136,9 +143,12 @@ void handle_client(int client_fd, char *buffer , int length ){
     // 4 +2 +1 + 2*7+4+1 =26 
     if(topic_name != ""){
       if(valid == true) {
+        //std :: cout << "parition id is " << Kaf_par.partition_id << std::endl;
           //topic_name = "";
           //meta = get_topic_metadata(topic_name);
-          partition_arr = 0x02 ;
+          std :: cout << "invokeddddd here ?" << std::endl;
+          std :: cout << "size is " << meta.cnt << std::endl;
+          partition_arr = Kaf_par.partition_id+1 ;
           be_error_code = 0x00;
           int32_t partition_id = 0x00;
           int32_t leader_id = 0x00;
@@ -146,7 +156,9 @@ void handle_client(int client_fd, char *buffer , int length ){
           int8_t len = 0x02;
           int32_t nod = 0x00;
           int8_t len_l = len-1;
-          int32_t message_size = htonl(78); // handle APIVersion Request and Describe Topic request bit 
+          int message_size ;
+          if(partition_arr == 0x1)  message_size = htonl(78); // handle APIVersion Request and Describe Topic request bit 
+          else message_size = htonl(101);
     // Send response:
     // Note: correlation_id must be sent back in network order
     //std :: cout << std::hex << message_size << std :: endl;
@@ -177,7 +189,7 @@ void handle_client(int client_fd, char *buffer , int length ){
     //  send(client_fd,&topic_id,sizeof(topic_id),0); // 4
     //  send(client_fd,&topic_id,sizeof(topic_id),0); // 4
     //  send(client_fd,&topic_id,sizeof(topic_id),0); // 4
-    send(client_fd,&meta.uuid,15,0);
+    send(client_fd,&meta.uuid[0],15,0);
      //send(client_fd,&topic_id,sizeof(topic_id),0);
      //send(client_fd,&inter_topic_id,sizeof(inter_topic_id),0);  // 2
     // send(client_fd,&topic_id_left,sizeof(topic_id_left),0); // 1
@@ -196,6 +208,24 @@ void handle_client(int client_fd, char *buffer , int length ){
       send(client_fd,&len_l,sizeof(len_l),0); // 1
       send(client_fd,&len_l,sizeof(len_l),0); // 1
       send(client_fd, &no_tags, sizeof(no_tags), 0);  // 1
+
+      //std :: cout << "par"
+      if(partition_arr > 0x2){
+      partition_id  = htonl(0x1);
+      //std :: cout << partition_id << std :: endl;
+      send(client_fd, &be_error_code, sizeof(be_error_code), 0); // 2
+      send(client_fd,&partition_id,sizeof(partition_id),0); //4
+      send(client_fd,&leader_id,sizeof(leader_id),0); //4
+      send(client_fd,&epoch,sizeof(epoch),0); // 4
+      send(client_fd,&len,sizeof(len),0); // 1
+      send(client_fd,&nod,sizeof(nod),0);//4
+      send(client_fd,&len,sizeof(len),0);//1
+      send(client_fd,&nod,sizeof(nod),0);//4
+      send(client_fd,&len_l,sizeof(len_l),0); // 1
+      send(client_fd,&len_l,sizeof(len_l),0); // 1
+      send(client_fd,&len_l,sizeof(len_l),0); // 1
+      send(client_fd, &no_tags, sizeof(no_tags), 0);  // 1
+      }
 
      send(client_fd,&topic_authorization,sizeof(topic_authorization),0); // 4
      send(client_fd, &no_tags, sizeof(no_tags), 0); // 1

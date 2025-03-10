@@ -36,10 +36,17 @@ Kafka_parser Kafka :: parser(char *buf){
         for(int i = 0 ;i < value ;i ++){
                 new_parser.topic_name += (char)(buffer[29+i]);
         }
+
+        int id = 29 + value;
         // std :: cout << new_parser.message_size<<std :: endl;
         // std :: cout << new_parser.request_api_key<<std :: endl;
         // std :: cout << new_parser.request_api_version<<std :: endl;
         // std :: cout << new_parser.correlation_id << std :: endl;
+
+        for(int i = 0 ;i < 4 ;i ++){
+                buffer[i+id] = buffer[i+id] & 0xff;
+                new_parser.partition_id = (new_parser.partition_id << 8) | buffer[i+id];
+        }
         
         return new_parser;
 }

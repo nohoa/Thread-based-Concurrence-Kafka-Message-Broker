@@ -9,6 +9,7 @@ struct Kafka_parser {
     int correlation_id = 0;
 
     std :: string topic_name  = "";
+    int partition_id = 0;
 };
 
 class Kafka {
