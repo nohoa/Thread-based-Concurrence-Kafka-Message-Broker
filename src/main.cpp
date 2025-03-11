@@ -23,12 +23,21 @@
 struct TopicMetadata {
   bool exists;
   int cnt = 0 ;
-  std::vector< std::array<unsigned char, 16> >  uuid;
+   uint8_t par_len = 0;
+   std::array<unsigned char, 16>  uuid;
+   std::array<unsigned char, 4>  nextt;
 };
-TopicMetadata get_topic_metadata(const std::string &topic_name) {
-  std::cout << "Checking metadata for topic: " << topic_name << std::endl; 
+std :: vector<TopicMetadata > get_topic_metadata(const std :: vector<std::string > &top) {
+    //std :: cout << "tf are u here for ? ";
+  std :: vector<TopicMetadata > ans ;
+  if(top.size() == 0) return ans;
+  for(int i = 0 ;i < top.size() ;i ++){
+    TopicMetadata result = {false,0,{}};
+    ans.push_back(result);
+  }
+  //std::cout << "Checking metadata for topic: " << topic_name << std::endl; 
   //std::vector< std::array<unsigned char, 16> >  ls_uuid ;
-  TopicMetadata result = {false,0,{}}; // Initialize with exists = false
+  //TopicMetadata result = {false,0,{}}; // Initialize with exists = false
   // Read the entire metadata file
   std::ifstream file("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log", std::ios::binary);
   // std :: cout << "inside the file" << std::endl;
@@ -36,26 +45,36 @@ TopicMetadata get_topic_metadata(const std::string &topic_name) {
   if (!file) {
     //std :: cout << "failed" << std :: endl;
     std::cout << "Failed to open metadata file" << std::endl;
-    return result; // Return with exists = false
+    return ans; // Return with exists = false
   }
   //std :: cout << "inside the file" << std::endl;
   // Read the entire file into memory
   std::vector<char> metadata((std::istreambuf_iterator<char>(file)),
                              std::istreambuf_iterator<char>());
+  int j = 0;
+  size_t i = 0 ;
 
   // Look for the topic name
-  for (size_t i = 0; i < metadata.size() - topic_name.length(); i++) {
+    while(j < top.size() && i < metadata.size() ) {
+      std :: string topic_name = top[j];
     if (std::string(metadata.begin() + i,
                     metadata.begin() + i + topic_name.length()) == topic_name) {
       // Found the topic name
-      result.exists = true;
-      if (i + topic_name.length() + 16 < metadata.size()) {
+      ans[j].exists = true;
+       if (i + topic_name.length() + 16 < metadata.size()) {
         //std :: cout << "matched" << std::endl;
         std::array<unsigned char, 16> ansuuid ;
         std::copy_n(metadata.begin() + i + topic_name.length(), 16,
                     ansuuid.begin());
-            result.cnt ++;
-        result.uuid.push_back(ansuuid);
+          //std :: cout << (uint8_t)metadata[i-11] << std :: endl;
+          //ans[j].par_len = metadata[i + topic_name.length()+30];
+            //std :: cout << std :: endl;
+            //ans[j].nextt = next;
+            //std :: cout << std :: endl;
+            ans[j].par_len = static_cast<uint8_t>(metadata[i-11]);
+            ans[j].cnt ++;
+        ans[j].uuid = ansuuid;
+        j ++;
         // std:: cout << "valid" << std::endl;
         // for(int i = 0 ;i < 16 ;i ++){
         //   std ::  cout <<  (int)(metadata[i + topic_name.length()]) <<" ";
@@ -64,9 +83,10 @@ TopicMetadata get_topic_metadata(const std::string &topic_name) {
       }
       //return result;
     }
+    i ++ ;
   }
   // If we didn't find the topic, return with exists = false
-  return result;
+  return ans;
 }
 
 void handle_client(int client_fd, char *buffer , int length ){
@@ -79,9 +99,12 @@ void handle_client(int client_fd, char *buffer , int length ){
         //std:: cout << "Error receiving bytes"  << std::endl;
         break;
     }
+    //std :: cout << "go here" << std :: endl;
     Kafka parser{buf};
     
     Kafka_parser Kaf_par = parser.parser( buf);
+
+    //std :: cout << "go here" << std :: endl;
    
     int value = htonl(1);
     int16_t be_error_code = htons(3); 
@@ -90,6 +113,7 @@ void handle_client(int client_fd, char *buffer , int length ){
     int16_t be_min_version = htons(0); // 2
     int16_t be_max_version = htons(4); // 2
     int32_t be_throttle_time_ms = htonl(0); // 4
+
     uint8_t no_tags = 0x00; // no tagged fields // 1 
     uint8_t api_key_tags = 0x00; // no tags for this ApiKey entry // 1
 
@@ -110,13 +134,20 @@ void handle_client(int client_fd, char *buffer , int length ){
     uint8_t topic_id_left = 0x00;
 
     uint8_t is_internal = 0x00;
+    //std :: cout << "go here" <<std :: endl;
+    std :: vector<std::string> topic_name = Kaf_par.topic_name;
 
-    std::string topic_name = Kaf_par.topic_name;
+      std :: cout << "enter here ?" << std::endl; 
+     
+      uint8_t topic_message_size ;
+      if(topic_name.size() ==0){
+        topic_message_size = 0;
+      }
+      else  topic_message_size = topic_name[0].length();
+      //std :: cout << "dont tell me ?" << std::endl; 
 
-
-      uint8_t topic_message_size = topic_name.length();
-
-    bool valid = parser.contains(buffer, length,topic_name);
+  bool valid = false;
+  if(topic_name.size() > 0) valid = parser.contains(buffer, length,topic_name[0]);
     //std :: cout << "size is " << topic_message_size << std::endl;
 
     int32_t topic_authorization = 0x00;
@@ -125,15 +156,7 @@ void handle_client(int client_fd, char *buffer , int length ){
     uint8_t nex_cursor = 0xff;
 
    //std::string tp_name = Kaf_par.topic_name;
-//
-//std :: cout << "topc is :" << topic_name << std::endl;
-  auto meta = get_topic_metadata(topic_name);
-  //std :: cout << "topic id is : " ;
-  //std :: cout << meta.exists<<std::endl;
-  //std :: cout <<  std::endl;
-  //std :: cout << meta.uuid.size() << std::endl;
-  //std :: cout << meta.exists << std::endl;
-  //std :: cout << std::endl;
+  auto  meta = get_topic_metadata(topic_name);
 
    // if(Kaf_par.request_api_version >= 0 && Kaf_par.request_api_version <= 4) be_error_code = htons(0);
     
@@ -141,14 +164,16 @@ void handle_client(int client_fd, char *buffer , int length ){
     // Calculate message size : correlation id(4) + error_code(2)+array length(1) + 2*(size_of_request = 7 = 
     //api_key(2)+min_support_version(2)+max_support_version(2)+tag_buffer(1)) + throttle_time(4) + tag_buffer(1) =
     // 4 +2 +1 + 2*7+4+1 =26 
-    if(topic_name != ""){
+    //std :: cout << "tp is : " <<  topic_name[0] << std :: endl;
+    if(topic_name.size() > 0 && topic_name[0] != ""){
       if(valid == true) {
         //std :: cout << "parition id is " << Kaf_par.partition_id << std::endl;
           //topic_name = "";
           //meta = get_topic_metadata(topic_name);
-          std :: cout << "invokeddddd here ?" << std::endl;
-          std :: cout << "size is " << meta.cnt << std::endl;
-          partition_arr = Kaf_par.partition_id+1 ;
+         // std :: cout << "invokeddddd here ?" << std::endl;
+          //std :: cout << "size is " << meta.cnt << std::endl;
+          unknow_topic_keys_length = meta.size()+1;
+         // partition_arr = Kaf_par.partition_id+1 ;
           be_error_code = 0x00;
           int32_t partition_id = 0x00;
           int32_t leader_id = 0x00;
@@ -156,12 +181,16 @@ void handle_client(int client_fd, char *buffer , int length ){
           int8_t len = 0x02;
           int32_t nod = 0x00;
           int8_t len_l = len-1;
+          //partition_arr = 0x01;
           int message_size ;
+          //partition_arr = Kaf_par.
+
           if(partition_arr == 0x1)  message_size = htonl(78); // handle APIVersion Request and Describe Topic request bit 
-          else message_size = htonl(101);
+          else message_size = htonl(270);
     // Send response:
     // Note: correlation_id must be sent back in network order
     //std :: cout << std::hex << message_size << std :: endl;
+    //send(client_fd, &meta[0].nextt, 4, 0); //4
     send(client_fd, &message_size, sizeof(message_size), 0); //4
     send(client_fd, &be_correlation_id, sizeof(be_correlation_id), 0); // 4
     //send(client_fd, &be_error_code, sizeof(be_error_code), 0);
@@ -181,20 +210,30 @@ void handle_client(int client_fd, char *buffer , int length ){
 //     //send(client_fd, &no_tags, sizeof(no_tags), 0);
      send(client_fd, &be_throttle_time_ms, sizeof(be_throttle_time_ms), 0); // 4
      send(client_fd, &unknow_topic_keys_length, sizeof(unknow_topic_keys_length), 0); // 1 
+      partition_arr = 0x03;
+
+     for(int i = 0 ;i < topic_name.size() ;i ++){
+      topic_message_size = topic_name[i].size();
+      //partition_arr = meta[i].par_len+2;
      send(client_fd, &be_error_code, sizeof(be_error_code), 0); // 2
      send(client_fd,&topic_message_size,sizeof(topic_message_size),0); //1
-     send(client_fd,topic_name.c_str(),topic_message_size,0); // 17
+     send(client_fd,topic_name[i].c_str(),topic_message_size,0); // 17
 
     //  send(client_fd,&topic_id,sizeof(topic_id),0); // 4
     //  send(client_fd,&topic_id,sizeof(topic_id),0); // 4
     //  send(client_fd,&topic_id,sizeof(topic_id),0); // 4
     //  send(client_fd,&topic_id,sizeof(topic_id),0); // 4
-    send(client_fd,&meta.uuid[0],15,0);
+    send(client_fd,&meta[i].uuid,15,0);
      //send(client_fd,&topic_id,sizeof(topic_id),0);
      //send(client_fd,&inter_topic_id,sizeof(inter_topic_id),0);  // 2
     // send(client_fd,&topic_id_left,sizeof(topic_id_left),0); // 1
      send(client_fd,&is_internal,sizeof(is_internal),0); // 1
+    // if(i == 1) partition_arr = 0x02;
+     //else partition_arr = 0x03;
+    // std :: cout << partition_arr << std :: endl;
+     partition_arr = meta[i].par_len;
      send(client_fd,&partition_arr,sizeof(partition_arr),0); // 1
+
 
       send(client_fd, &be_error_code, sizeof(be_error_code), 0); // 2
       send(client_fd,&partition_id,sizeof(partition_id),0); //4
@@ -210,6 +249,7 @@ void handle_client(int client_fd, char *buffer , int length ){
       send(client_fd, &no_tags, sizeof(no_tags), 0);  // 1
 
       //std :: cout << "par"
+      //if(i == 2) partition_arr = 0x02;
       if(partition_arr > 0x2){
       partition_id  = htonl(0x1);
       //std :: cout << partition_id << std :: endl;
@@ -225,10 +265,13 @@ void handle_client(int client_fd, char *buffer , int length ){
       send(client_fd,&len_l,sizeof(len_l),0); // 1
       send(client_fd,&len_l,sizeof(len_l),0); // 1
       send(client_fd, &no_tags, sizeof(no_tags), 0);  // 1
+      partition_id  = 0x00;
       }
 
      send(client_fd,&topic_authorization,sizeof(topic_authorization),0); // 4
      send(client_fd, &no_tags, sizeof(no_tags), 0); // 1
+     }
+
      send(client_fd,&nex_cursor,sizeof(nex_cursor),0); // 1
      //send(client_fd,tp_name.c_str(),sizeof(tp_name.c_str()),0);
      send(client_fd, &no_tags, sizeof(no_tags), 0); 
@@ -240,8 +283,8 @@ void handle_client(int client_fd, char *buffer , int length ){
     //std :: cout << std::hex << message_size << std :: endl;
     be_error_code = htons(3); // no tags for this ApiKey entry // 1
     topic_id = 0x00;
-    std::string topic_name = Kaf_par.topic_name;
-    uint8_t topic_message_size = topic_name.length();
+    //std::string topic_name = Kaf_par.topic_name;
+    uint8_t topic_message_size = topic_name[0].length();
     //std :: cout << "size is " << topic_message_size << std::endl;
     int32_t topic_authorization = 0x00;
     uint8_t partition_arr = 0x01;
@@ -269,7 +312,7 @@ void handle_client(int client_fd, char *buffer , int length ){
      send(client_fd, &unknow_topic_keys_length, sizeof(unknow_topic_keys_length), 0); // 1 
      send(client_fd, &be_error_code, sizeof(be_error_code), 0); // 2
      send(client_fd,&topic_message_size,sizeof(topic_message_size),0); //1
-     send(client_fd,topic_name.c_str(),17,0); // 17
+     send(client_fd,topic_name[0].c_str(),17,0); // 17
 
      send(client_fd,&topic_id,sizeof(topic_id),0); // 4
      send(client_fd,&topic_id,sizeof(topic_id),0); // 4
@@ -291,6 +334,7 @@ void handle_client(int client_fd, char *buffer , int length ){
       }
     }
     else {
+     // std :: cout <<"you mean here right ?" << std :: endl;
        int  message_size = htonl(26); // handle APIVersion Request and Describe Topic request bit 
     // Send response:
     // Note: correlation_id must be sent back in network order
@@ -355,7 +399,10 @@ int main(int argc, char* argv[]) {
     std :: string s ;
     std::vector<std::string > metadata ;
 
-
+  for(int i = 0 ;i < length ;i ++){
+    std :: cout << buffer[i] ;
+  }
+  //std :: cout << std::endl;
     
     //std :: cout << std::endl;
     int reuse = 1;

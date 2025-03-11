@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include<iostream>
 #include<stdlib.h>
+#include<vector>
 
 struct Kafka_parser {
     int message_size = 0 ;
@@ -8,7 +9,7 @@ struct Kafka_parser {
     int request_api_version = 0;
     int correlation_id = 0;
 
-    std :: string topic_name  = "";
+    std :: vector<std :: string >  topic_name  ;
     int partition_id = 0;
 };
 

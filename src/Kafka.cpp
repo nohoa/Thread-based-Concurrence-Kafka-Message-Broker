@@ -9,8 +9,8 @@
 Kafka_parser Kafka :: parser(char *buf){
         Kafka_parser new_parser ;
         //std :: cout << "lol" << std :: endl;
-        int buffer[305];
-        for(int i = 0 ;i < 305 ;i ++){
+        int buffer[1024];
+        for(int i = 0 ;i < 1024 ;i ++){
                 buffer[i] = (int)(buf[i]);
         }
         for(int i = 0 ;i < 4 ;i ++){
@@ -33,11 +33,21 @@ Kafka_parser Kafka :: parser(char *buf){
         int value = buffer[28];
         //std :: cout << value << std:: endl;
         if(value >= 80) return new_parser;
-        for(int i = 0 ;i < value ;i ++){
-                new_parser.topic_name += (char)(buffer[29+i]);
+
+        int curr_id = 28;
+        //std :: cout << "go inside here" << std :: endl;
+        while(buffer[curr_id] != 0x00){
+                int value = buffer[curr_id];
+                std :: string topic ;
+                for(int i = 0 ;i < value ;i ++){
+                         topic += (char)(buffer[curr_id+1+i]);
+                }
+                new_parser.topic_name.push_back(topic);
+                curr_id += value;
+                curr_id += 1;
         }
 
-        int id = 29 + value;
+        int id = curr_id;
         // std :: cout << new_parser.message_size<<std :: endl;
         // std :: cout << new_parser.request_api_key<<std :: endl;
         // std :: cout << new_parser.request_api_version<<std :: endl;
