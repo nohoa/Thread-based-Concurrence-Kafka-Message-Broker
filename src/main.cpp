@@ -14,6 +14,7 @@
 #include <fstream>
 #include<vector>
 #include <iterator>
+#include<mutex>
 
 #include<thread>
 
@@ -88,9 +89,10 @@ std :: vector<TopicMetadata > get_topic_metadata(const std :: vector<std::string
   // If we didn't find the topic, return with exists = false
   return ans;
 }
-
+std :: mutex some_mutex;
 void handle_client(int client_fd, char *buffer , int length ){
     while(true){
+    //std::lock_guard<std::mutex> guard(some_mutex);
     //std :: cout << "Client is :"  << client_fd << std :: endl;
     char buf[1024] ;
     int recieved_status =recv(client_fd,buf,sizeof(buf),0);
@@ -99,6 +101,7 @@ void handle_client(int client_fd, char *buffer , int length ){
         //std:: cout << "Error receiving bytes"  << std::endl;
         break;
     }
+
     //std :: cout << "go here" << std :: endl;
     Kafka parser{buf};
     
@@ -137,7 +140,7 @@ void handle_client(int client_fd, char *buffer , int length ){
     //std :: cout << "go here" <<std :: endl;
     std :: vector<std::string> topic_name = Kaf_par.topic_name;
 
-      std :: cout << "enter here ?" << std::endl; 
+      //std :: cout << "enter here ?" << std::endl; 
      
       uint8_t topic_message_size ;
       if(topic_name.size() ==0){
@@ -148,7 +151,7 @@ void handle_client(int client_fd, char *buffer , int length ){
 
   bool valid = false;
   if(topic_name.size() > 0) valid = parser.contains(buffer, length,topic_name[0]);
-    //std :: cout << "size is " << topic_message_size << std::endl;
+   // std :: cout << "size is " << topic_message_size << std::endl;
 
     int32_t topic_authorization = 0x00;
 
@@ -165,7 +168,46 @@ void handle_client(int client_fd, char *buffer , int length ){
     //api_key(2)+min_support_version(2)+max_support_version(2)+tag_buffer(1)) + throttle_time(4) + tag_buffer(1) =
     // 4 +2 +1 + 2*7+4+1 =26 
     //std :: cout << "tp is : " <<  topic_name[0] << std :: endl;
-    if(topic_name.size() > 0 && topic_name[0] != ""){
+    if(Kaf_par.request_api_version == 4) {
+      //std :: cout <<"you mean here right ?" << std :: endl;
+       int  message_size = htonl(33); // handle APIVersion Request and Describe Topic request bit 
+    // Send response:
+    // Note: correlation_id must be sent back in network order
+    //std :: cout << std::hex << message_size << std :: endl;
+    be_error_code = htons(35);
+    api_keys_length = 0x04;
+
+    if(Kaf_par.request_api_version >= 0 && Kaf_par.request_api_version <= 4) be_error_code = htons(0);
+    send(client_fd, &message_size, sizeof(message_size), 0);
+    send(client_fd, &be_correlation_id, sizeof(be_correlation_id), 0); //
+    send(client_fd, &be_error_code, sizeof(be_error_code), 0);
+
+    send(client_fd, &api_keys_length, sizeof(api_keys_length), 0);
+    send(client_fd, &be_api_key, sizeof(be_api_key), 0);
+    send(client_fd, &be_min_version, sizeof(be_min_version), 0);
+    send(client_fd, &be_max_version, sizeof(be_max_version), 0);
+    send(client_fd, &api_key_tags, sizeof(api_key_tags), 0);
+
+
+    int16_t api_fetch_key = htons(1) ;
+    int16_t fetch_min_version = htons(0); // 2
+    int16_t fetch_max_version = htons(16); // 2
+   // send(client_fd, &api_keys_length, sizeof(api_keys_length), 0); // 1
+
+     send(client_fd, &api_fetch_key, sizeof(api_fetch_key), 0); // 2
+    send(client_fd, &fetch_min_version, sizeof(fetch_min_version), 0); // 2 
+    send(client_fd, &fetch_max_version, sizeof(fetch_max_version), 0); // 2
+    send(client_fd, &api_key_tags, sizeof(api_key_tags), 0); // 1
+   // send(client_fd, &no_tags, sizeof(no_tags), 0);
+    send(client_fd, &topic_partition_key, sizeof(topic_partition_key), 0);
+    send(client_fd,&topic_min_version,sizeof(topic_min_version),0);
+    send(client_fd,&topic_max_version,sizeof(topic_max_version),0);
+    send(client_fd,&topic_key_tags,sizeof(topic_key_tags),0);
+    //send(client_fd, &no_tags, sizeof(no_tags), 0);
+    send(client_fd, &be_throttle_time_ms, sizeof(be_throttle_time_ms), 0);
+    send(client_fd, &no_tags, sizeof(no_tags), 0);
+    }
+    else if(topic_name.size() > 0 && topic_name[0] != ""){
       if(valid == true) {
         //std :: cout << "parition id is " << Kaf_par.partition_id << std::endl;
           //topic_name = "";
@@ -334,29 +376,12 @@ void handle_client(int client_fd, char *buffer , int length ){
       }
     }
     else {
-     // std :: cout <<"you mean here right ?" << std :: endl;
-       int  message_size = htonl(26); // handle APIVersion Request and Describe Topic request bit 
-    // Send response:
-    // Note: correlation_id must be sent back in network order
-    //std :: cout << std::hex << message_size << std :: endl;
-    be_error_code = htons(35);
-    if(Kaf_par.request_api_version >= 0 && Kaf_par.request_api_version <= 4) be_error_code = htons(0);
-    send(client_fd, &message_size, sizeof(message_size), 0);
-    send(client_fd, &be_correlation_id, sizeof(be_correlation_id), 0); //
-    send(client_fd, &be_error_code, sizeof(be_error_code), 0);
-    send(client_fd, &api_keys_length, sizeof(api_keys_length), 0);
-    send(client_fd, &be_api_key, sizeof(be_api_key), 0);
-    send(client_fd, &be_min_version, sizeof(be_min_version), 0);
-    send(client_fd, &be_max_version, sizeof(be_max_version), 0);
-    send(client_fd, &api_key_tags, sizeof(api_key_tags), 0);
-   // send(client_fd, &no_tags, sizeof(no_tags), 0);
-    send(client_fd, &topic_partition_key, sizeof(topic_partition_key), 0);
-    send(client_fd,&topic_min_version,sizeof(topic_min_version),0);
-    send(client_fd,&topic_max_version,sizeof(topic_max_version),0);
-    send(client_fd,&topic_key_tags,sizeof(topic_key_tags),0);
-    //send(client_fd, &no_tags, sizeof(no_tags), 0);
-    send(client_fd, &be_throttle_time_ms, sizeof(be_throttle_time_ms), 0);
-    send(client_fd, &no_tags, sizeof(no_tags), 0);
+      int value1  = htonl(Kaf_par.correlation_id);
+      int error_code = htons(35);
+    if(Kaf_par.request_api_version >= 0 && Kaf_par.request_api_version <= 4) error_code = htons(0);
+    write(client_fd,&value,4);
+    write(client_fd,&value1, 4);
+    write(client_fd,&error_code,2);
     }
     }
     close(client_fd);
@@ -399,9 +424,9 @@ int main(int argc, char* argv[]) {
     std :: string s ;
     std::vector<std::string > metadata ;
 
-  for(int i = 0 ;i < length ;i ++){
-    std :: cout << buffer[i] ;
-  }
+  // for(int i = 0 ;i < length ;i ++){
+  //   std :: cout << buffer[i] ;
+  // }
   //std :: cout << std::endl;
     
     //std :: cout << std::endl;
