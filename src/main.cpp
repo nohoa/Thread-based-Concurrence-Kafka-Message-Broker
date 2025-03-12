@@ -375,6 +375,26 @@ void handle_client(int client_fd, char *buffer , int length ){
 //     send(client_fd, &no_tags, sizeof(no_tags), 0);
       }
     }
+    else if(Kaf_par.request_api_version == 16){
+       int  message_size = htonl(17); // handle APIVersion Request and Describe Topic request bit 
+    // Send response:
+    // Note: correlation_id must be sent back in network order
+    //std :: cout << std::hex << message_size << std :: endl;
+      be_error_code = htons(0);
+      int32_t error_code = 0x00;
+      //api_keys_length = 0x04;
+      int32_t session_id = 0x00 ;
+      uint8_t response_body_size = 0x01;
+      
+
+      send(client_fd, &message_size, sizeof(message_size), 0);
+      send(client_fd,&be_correlation_id,sizeof(be_correlation_id),0); // 4
+       send(client_fd,&no_tags,sizeof(no_tags),0); // 1
+       //send(client_fd,&response_body_size,sizeof(response_body_size),0);// 1
+      send(client_fd,&be_throttle_time_ms,sizeof(be_throttle_time_ms),0); // 4
+      send(client_fd,&error_code,sizeof(error_code),0); // 4
+      send(client_fd,&session_id,sizeof(session_id),0); // 4
+    }
     else {
       int value1  = htonl(Kaf_par.correlation_id);
       int error_code = htons(35);
