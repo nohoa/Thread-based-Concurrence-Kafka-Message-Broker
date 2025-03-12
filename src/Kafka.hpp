@@ -9,7 +9,10 @@ struct Kafka_parser {
     int request_api_version = 0;
     int correlation_id = 0;
 
+    bool batch = false ;
+
     std :: vector<std :: string >  topic_name  ;
+    std::array<unsigned char, 16>  fetch_uuid;
     int partition_id = 0;
 };
 

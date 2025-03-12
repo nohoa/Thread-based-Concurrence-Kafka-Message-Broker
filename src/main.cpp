@@ -140,6 +140,8 @@ void handle_client(int client_fd, char *buffer , int length ){
     //std :: cout << "go here" <<std :: endl;
     std :: vector<std::string> topic_name = Kaf_par.topic_name;
 
+    //std :: cout << topic_name.size() << std :: endl;
+
       //std :: cout << "enter here ?" << std::endl; 
      
       uint8_t topic_message_size ;
@@ -376,7 +378,110 @@ void handle_client(int client_fd, char *buffer , int length ){
       }
     }
     else if(Kaf_par.request_api_version == 16){
-       int  message_size = htonl(17); // handle APIVersion Request and Describe Topic request bit 
+     // handle APIVersion Request and Describe Topic request bit 
+    // Send response:
+    // Note: correlation_id must be sent back in network order
+    //std :: cout << std::hex << message_size << std :: endl;
+    //std :: cout << "batch is " << Kaf_par.batch << std::endl;
+    if(Kaf_par.batch == true) {
+      int  message_size = htonl(72);
+      be_error_code = htons(0);
+      int16_t error_code = 0x00;
+      //api_keys_length = 0x04;
+      int32_t session_id = 0x00 ;
+      uint8_t response_body_size = 0x02;
+
+      //response_body_size = 0x00;
+
+      uint32_t fetch_id = 0x00;
+      
+      int16_t fetch_error_code = htons(100);
+
+      partition_arr = 0x02;
+
+      int32_t par_id = 0x00;
+
+      uint32_t topic_id_fetch = 0x00;
+
+      //std :: cout << "fail here  ? " << std :: endl;
+      std :: string top_name = "foo";
+      //std :: cout << "come here  ? " << std :: endl;
+
+      topic_message_size = top_name.size();
+
+      send(client_fd, &message_size, sizeof(message_size), 0);
+      send(client_fd,&be_correlation_id,sizeof(be_correlation_id),0); // 4
+       send(client_fd,&no_tags,sizeof(no_tags),0); // 1
+
+
+       //send(client_fd,&response_body_size,sizeof(response_body_size),0);// 1
+      send(client_fd,&be_throttle_time_ms,sizeof(be_throttle_time_ms),0); // 4
+      send(client_fd,&error_code,sizeof(error_code),0); // 4
+      send(client_fd,&session_id,sizeof(session_id),0); // 4
+      send(client_fd,&response_body_size,sizeof(response_body_size),0); // 1
+
+
+    //  send(client_fd,&fetch_error_code,sizeof(fetch_error_code), 0) ; // 2
+
+      //send(client_fd,&topic_message_size,sizeof(topic_message_size),0); // 4
+
+
+     // send(client_fd,top_name.c_str(),2,0); // 17
+
+      //std :: cout << "send here" << std:: endl;
+
+      send(client_fd,&Kaf_par.fetch_uuid,sizeof(Kaf_par.fetch_uuid),0);
+
+      
+      //send(client_fd,&is_internal,sizeof(is_internal),0);
+
+     send(client_fd,&partition_arr,sizeof(partition_arr),0); // 1
+      //send(client_fd, &fetch_error_code, sizeof(fetch_error_code), 0); // 2
+
+        int32_t partition_id = 0x00;
+          int32_t leader_id = 0x00;
+          int32_t epoch = 0x00;
+          int8_t len = 0x02;
+          int32_t nod = 0x00;
+          int8_t len_l = len-1;
+
+        int64_t high_watermark = 0x00 ;
+        int64_t last_stable_offset = 0x00 ;
+        int64_t log_start_offset = 0x00;
+        uint8_t aborted_num = 0x00;
+        uint8_t record_len = 0x00;
+        int32_t preferred_read_replica = 0x00;
+        
+
+      send(client_fd,&partition_id,sizeof(partition_id),0); //4
+      send(client_fd,&fetch_error_code,sizeof(fetch_error_code),0);//2
+      //send(client_fd,&leader_id,sizeof(leader_id),0); //4
+      //send(client_fd,&epoch,sizeof(epoch),0); // 4
+      send(client_fd,&high_watermark,sizeof(high_watermark),0); //8
+      send(client_fd,&last_stable_offset,sizeof(last_stable_offset),0); //8
+      send(client_fd,&log_start_offset,sizeof(log_start_offset),0); // 8
+      send(client_fd,&aborted_num,sizeof(aborted_num),0); // 1
+      send(client_fd,&preferred_read_replica,sizeof(preferred_read_replica),0); // 4
+      send(client_fd,&record_len,sizeof(record_len),0); //1
+      //send(client_fd,&len,sizeof(len),0); // 1
+      // send(client_fd,&nod,sizeof(nod),0);//4
+      // send(client_fd,&len,sizeof(len),0);//1
+      // send(client_fd,&nod,sizeof(nod),0);//4
+      // send(client_fd,&len_l,sizeof(len_l),0); // 1
+      // send(client_fd,&len_l,sizeof(len_l),0); // 1
+      // send(client_fd,&len_l,sizeof(len_l),0); // 1
+      send(client_fd, &no_tags, sizeof(no_tags), 0);  // 1
+    // send(client_fd,&topic_authorization,sizeof(topic_authorization),0); // 4
+     send(client_fd, &no_tags, sizeof(no_tags), 0); // 1
+    // send(client_fd,&nex_cursor,sizeof(nex_cursor),0); // 1
+     //send(client_fd,tp_name.c_str(),sizeof(tp_name.c_str()),0);
+     send(client_fd, &no_tags, sizeof(no_tags), 0);  // 1
+
+      //send(client_fd,&fetch_error_code,sizeof(fetch_error_code),0);
+      std :: cout << "send here" << std:: endl;
+    }
+    else {
+      int  message_size = htonl(17); // handle APIVersion Request and Describe Topic request bit 
     // Send response:
     // Note: correlation_id must be sent back in network order
     //std :: cout << std::hex << message_size << std :: endl;
@@ -384,9 +489,8 @@ void handle_client(int client_fd, char *buffer , int length ){
       int32_t error_code = 0x00;
       //api_keys_length = 0x04;
       int32_t session_id = 0x00 ;
-      uint8_t response_body_size = 0x01;
+      //uint8_t response_body_size = htons(1);
       
-
       send(client_fd, &message_size, sizeof(message_size), 0);
       send(client_fd,&be_correlation_id,sizeof(be_correlation_id),0); // 4
        send(client_fd,&no_tags,sizeof(no_tags),0); // 1
@@ -394,6 +498,8 @@ void handle_client(int client_fd, char *buffer , int length ){
       send(client_fd,&be_throttle_time_ms,sizeof(be_throttle_time_ms),0); // 4
       send(client_fd,&error_code,sizeof(error_code),0); // 4
       send(client_fd,&session_id,sizeof(session_id),0); // 4
+    }
+
     }
     else {
       int value1  = htonl(Kaf_par.correlation_id);

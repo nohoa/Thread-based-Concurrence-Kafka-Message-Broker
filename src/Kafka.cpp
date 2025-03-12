@@ -12,6 +12,8 @@ Kafka_parser Kafka :: parser(char *buf){
         int buffer[1024];
         for(int i = 0 ;i < 1024 ;i ++){
                 buffer[i] = (int)(buf[i]);
+                //std :: cout << buffer[i] << " ";
+                if(buffer[i] == -1) new_parser.batch = true ;
         }
         for(int i = 0 ;i < 4 ;i ++){
                 new_parser.message_size = (new_parser.message_size << 8)|buffer[i];
@@ -57,7 +59,12 @@ Kafka_parser Kafka :: parser(char *buf){
                 buffer[i+id] = buffer[i+id] & 0xff;
                 new_parser.partition_id = (new_parser.partition_id << 8) | buffer[i+id];
         }
-        
+
+        for(int i = 46 ;i < 46 + 16 ;i ++){
+                //std :: cout << std ::hex << buffer[i] <<" ";
+                new_parser.fetch_uuid[i-46] = buffer[i];
+                //std :: cout << std ::hex << new_parser.fetch_uuid[i] <<" ";
+        }
         return new_parser;
 }
 
