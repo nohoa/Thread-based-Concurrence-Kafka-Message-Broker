@@ -190,7 +190,7 @@ std :: vector<TopicMetadata > get_topic_metadata1(const std :: vector<std::strin
 }
 std :: mutex some_mutex;
 void handle_client(int client_fd, char *buffer , int length, std::string takeout, int batch_len, char*buffer_taken,
- std :: map<std::array<unsigned char, 16>,std::string> mp ){
+ std :: map<std::array<unsigned char, 16>,std::string> mp , int length2, char* buffer2,std::map<int,std::pair<char*,int> > ls_buff ){
     while(true){
     //std::lock_guard<std::mutex> guard(some_mutex);
     //std :: cout << "Client is :"  << client_fd << std :: endl;
@@ -210,7 +210,7 @@ void handle_client(int client_fd, char *buffer , int length, std::string takeout
 
     std::string fname = mp[Kaf_par.fetch_uuid];
       std::ifstream is("/tmp/kraft-combined-logs/" +fname + "-0/00000000000000000000.log");
-
+      //std::ifstream is1("/tmp/kraft-combined-logs/" +fname + "-1/00000000000000000000.log");
     //char * buffer = new char [1024];
     int lll = 0;
     
@@ -221,8 +221,15 @@ void handle_client(int client_fd, char *buffer , int length, std::string takeout
     is.seekg (0, is.beg);
 
 
-    std::cout << "Reading " << lll << " characters... " << std::endl ;
+    //std::cout << "Reading " << lll << " characters... " << std::endl ;
     }
+
+    int state = 0;
+    if(lll == ls_buff[0].second) state = 1;
+    else if(lll == ls_buff[1].second) state = 2;
+
+    std :: cout << "state issssss : " << state << std :: endl;
+
 
     //std :: cout << "go here" << std :: endl;
    
@@ -543,7 +550,35 @@ void handle_client(int client_fd, char *buffer , int length, std::string takeout
       clean.pop_back();
       takeout = clean;
 
-      int  message_size = htonl(140 + clean.length());
+      std :: string sent2 = "";
+
+      std :: string sent3 = "";
+        int ll = 0;
+      int idx = 0;
+     for(int i = 0 ;i < ls_buff[1].second ;i ++){
+      sent3 += ls_buff[1].first[i];
+     }
+      for(int i = 0 ;i < ls_buff[1].second ;i ++){
+        //ll ++;
+        //if(i == 7) ls_buff[1].first[i] = (char)(0x1);
+        if(ls_buff[1].first[i] == (char)(0x21)) {
+            idx = i ;
+            break;
+        }
+      }
+      idx ++;
+
+      for(int i = idx+1 ;i < ls_buff[1].second  ;i ++){
+          sent2 += ls_buff[1].first[i];
+          ll ++;
+      }
+
+      std :: cout << "buffer size is " << ll <<" " << ls_buff.size() << std :: endl;
+      int  message_size = htonl(72 + ls_buff[1].second);
+
+      if(state == 1){
+        message_size = htonl(140 + clean.length());
+      }
 
       be_error_code = htons(0);
       int16_t error_code = 0x00;
@@ -636,7 +671,9 @@ void handle_client(int client_fd, char *buffer , int length, std::string takeout
         int64_t last_stable_offset = 0x00 ;
         int64_t log_start_offset = 0x00;
         uint8_t aborted_num = 0x00;
-        uint8_t record_len = 0x02;
+        uint8_t record_len = 0x01;
+        if(ls_buff[0].second != 0 ) record_len ++;
+        if(ls_buff[1].second != 0 ) record_len ++;
         int32_t preferred_read_replica = 0x00;
 
         int64_t base_offset = 0x00;
@@ -724,12 +761,18 @@ void handle_client(int client_fd, char *buffer , int length, std::string takeout
   //     // send(client_fd,&len_l,sizeof(len_l),0); // 1
   //     // send(client_fd,&len_l,sizeof(len_l),0); // 1
       std :: string sent = "";
-      for(int i = 0 ;i < batch_len ;i ++){
-        sent += buffer_taken[i];
-        std :: cout << (int)buffer_taken[i] << " ";
+      for(int i = 0 ;i < ls_buff[0].second ;i ++){
+        sent += ls_buff[0].first[i];
+        std :: cout << (int)ls_buff[0].first[i] << " ";
       }
+
+      std :: cout << std::endl;
+      
       //std :: cout << std::endl;
-      send(client_fd,sent.c_str(),batch_len,0);
+      //send(client_fd,sent.c_str(),batch_len,0);
+      //send(client_fd,sent2.c_str(),length2,0);
+     if(state == 2 ) send(client_fd,sent3.c_str(),ls_buff[1].second,0);
+     else send(client_fd,sent.c_str(),ls_buff[0].second,0);
       send(client_fd, &no_tags, sizeof(no_tags), 0);  // 1
     // send(client_fd,&topic_authorization,sizeof(topic_authorization),0); // 4
      send(client_fd, &no_tags, sizeof(no_tags), 0); // 1
@@ -898,12 +941,16 @@ int main(int argc, char* argv[]) {
         }
         //std :: cout << "uval is " <<  uval << std::endl;
         reverse(uval.begin(),uval.end());
-        if(uval.back() != '1') all_uuid.push_back(uval);
+        // all_uuid.push_back(uval);
+         //if(uval.back())
+         if(uval.back() != '1') all_uuid.push_back(uval);
+         std :: cout << current << std :: endl;
         all_path.push_back(current);
       }
        // std :: cout << entry << std :: endl;
     }
     std :: map<std::array<unsigned char, 16>,std::string> mp;
+    std::map<int,std::pair<char*,int> > ls_buff ;
    std ::vector<TopicMetadata> tpm =   get_topic_metadata1(all_uuid);
    for(int i = 0 ;i < tpm.size() ;i ++){
       for(int j = 0;j < 16 ;j ++){
@@ -913,16 +960,22 @@ int main(int argc, char* argv[]) {
       //std :: cout << it.
       std :: cout << std::endl;
    }
+
      std :: string value_take_out = "";
 
       char *buffer_take = new char[1024];
+      char *buffer2 = new char[1024];
+
       int lenn ;
+      int lenn2 ;
+
+      std :: cout << "path size are :" << all_path.size() << std ::endl;
     for(auto it : all_path){
+      std :: cout << "path are " << it << std::endl;
       std::ifstream is1(it +"/00000000000000000000.log");
 
     char * buffer1 = new char [1024];
     int length = 0;
-    
     if (is1.is_open()) {
     // get length of file:
     is1.seekg (0, is1.end);
@@ -930,6 +983,11 @@ int main(int argc, char* argv[]) {
     is1.seekg (0, is1.beg);
 
     std::cout << "Reading " << length << " characters... " << std::endl ;
+
+    for(int j= 0 ;j < length ;j ++){
+      std :: cout << buffer1[j] ;
+    }
+    std :: cout << std::endl;
     // read data as a block:
     //std :: cout << std::endl;
     is1.read (buffer1,length);
@@ -955,6 +1013,13 @@ int main(int argc, char* argv[]) {
         for(int p = 0 ;p < length ;p ++){
           buffer_take[p] = buffer1[p]; 
         }
+        //value_take_out = fetch_value;
+        if(!ls_buff.count(0)){
+          ls_buff[0] = std::make_pair(buffer_take, length);
+        }
+        else {
+          ls_buff[1] = std::make_pair(buffer_take, length);
+        }
         lenn = length;
         int len_count = 0;
         for(int i = length-1 ;i >= 0 ;i --){
@@ -971,12 +1036,31 @@ int main(int argc, char* argv[]) {
             }
           len_count ++ ;
         }
-       if(fetch_value != "") {
+       if(total == 2 && fetch_value != "") {
         value_take_out = fetch_value;
-        break;
+        //break;
        }
       }
+      else if(total == 3){
+             for(int p = 0 ;p < length ;p ++){
+                buffer2[p] = buffer1[p]; 
+        }
+        if(!ls_buff.count(0)){
+          ls_buff[0] = std::make_pair(buffer2, length);
+        }
+        else {
+          ls_buff[1] = std::make_pair(buffer2, length);
+        }
+        lenn2 = length;
+      }
     }
+    if(ls_buff.size() == 2){
+      if(ls_buff[0].second > ls_buff[1].second){
+        std::pair<char*,int> p1 = ls_buff[0];
+        ls_buff[0] = ls_buff[1];
+        ls_buff[1] = p1;
+      }
+    } 
     //std :: cout << std :: endl;
     // Read the input stream 
     std::ifstream is("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log");
@@ -1007,7 +1091,7 @@ int main(int argc, char* argv[]) {
 
     std :: cout << std :: endl;
 
-
+  //std :: cout << len
 
     std :: string s ;
     std::vector<std::string > metadata ;
@@ -1067,7 +1151,7 @@ int main(int argc, char* argv[]) {
       std::cerr << "Accept failed" << std::endl;
       continue;
     }
-    std::thread th(handle_client,client_fd,buffer,length,value_take_out, lenn,buffer_take,mp);
+    std::thread th(handle_client,client_fd,buffer,length,value_take_out, lenn,buffer_take,mp,lenn2,buffer2,ls_buff );
     //handle_client(client_fd);
     th.detach();
     }
