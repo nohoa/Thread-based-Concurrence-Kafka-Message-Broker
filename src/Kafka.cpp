@@ -8,11 +8,9 @@
 
 Kafka_parser Kafka :: parser(char *buf){
         Kafka_parser new_parser ;
-        //std :: cout << "lol" << std :: endl;
         int buffer[1024];
         for(int i = 0 ;i < 1024 ;i ++){
                 buffer[i] = (int)(buf[i]);
-                //std :: cout << buffer[i] << " ";
                 if(buffer[i] == -1) new_parser.batch = true ;
         }
         for(int i = 0 ;i < 4 ;i ++){
@@ -26,18 +24,14 @@ Kafka_parser Kafka :: parser(char *buf){
         }
         for(int i = 8 ;i < 12 ;i ++){
                 int inter_buf = 0;
-                //for(int j = 0 ;j < 8 ;j ++ )
                 buffer[i] = buffer[i] & 0xff;
-               // std :: cout 
                 new_parser.correlation_id = (new_parser.correlation_id << 8)|buffer[i];
         }
 
         int value = buffer[28];
-        //std :: cout << value << std:: endl;
         if(value >= 80) return new_parser;
 
         int curr_id = 28;
-        //std :: cout << "go inside here" << std :: endl;
         while(buffer[curr_id] != 0x00){
                 int value = buffer[curr_id];
                 std :: string topic ;
@@ -50,27 +44,19 @@ Kafka_parser Kafka :: parser(char *buf){
         }
 
         int id = curr_id;
-        // std :: cout << new_parser.message_size<<std :: endl;
-        // std :: cout << new_parser.request_api_key<<std :: endl;
-        // std :: cout << new_parser.request_api_version<<std :: endl;
-        // std :: cout << new_parser.correlation_id << std :: endl;
-
         for(int i = 0 ;i < 4 ;i ++){
                 buffer[i+id] = buffer[i+id] & 0xff;
                 new_parser.partition_id = (new_parser.partition_id << 8) | buffer[i+id];
         }
 
         for(int i = 46 ;i < 46 + 16 ;i ++){
-                //std :: cout << std ::hex << buffer[i] <<" ";
                 new_parser.fetch_uuid[i-46] = buffer[i];
-                //std :: cout << std ::hex << new_parser.fetch_uuid[i] <<" ";
         }
         return new_parser;
 }
 
 bool Kafka ::contains(char *buf, int length,std::string match){
         int i = 0;
-        std :: cout << "inside" << std :: endl;
         while(i < length){
                 if(buf[i] == match[0]){
                         int cnt = 0 ;
@@ -81,12 +67,10 @@ bool Kafka ::contains(char *buf, int length,std::string match){
                                 else break;
                         }
                         if(cnt == match.length()) {
-                                //std :: cout << "match" << std :: endl;
                                 return true;
                         }
                 }
                 i ++;
         }
-        std :: cout << "outside ? " << std:: endl;
         return false;
 }
