@@ -289,7 +289,7 @@ void handle_client(int client_fd, char *buffer, int length, std::string takeout,
         partition_arr = 0x03;
         for (int i = 0; i < topic_name.size(); i++) {
           topic_message_size = topic_name[i].size();
-          // partition_arr = meta[i].par_len+2;
+
           send(client_fd, &be_error_code, sizeof(be_error_code), 0); // 2
           send(client_fd, &topic_message_size, sizeof(topic_message_size),
                0);                                                       // 1
@@ -365,19 +365,16 @@ void handle_client(int client_fd, char *buffer, int length, std::string takeout,
         send(client_fd, &topic_id, sizeof(topic_id), 0); // 4
         send(client_fd, &topic_id, sizeof(topic_id), 0); // 4
         send(client_fd, &topic_id, sizeof(topic_id), 0); // 4
-        // send(client_fd,&meta.uuid,sizeof(meta.uuid),0);
-        // send(client_fd,&topic_id,sizeof(topic_id),0);
-        // send(client_fd,&inter_topic_id,sizeof(inter_topic_id),0);  // 2
-        // send(client_fd,&topic_id_left,sizeof(topic_id_left),0); // 1
+    
         send(client_fd, &is_internal, sizeof(is_internal), 0);     // 1
         send(client_fd, &partition_arr, sizeof(partition_arr), 0); // 1
         send(client_fd, &topic_authorization, sizeof(topic_authorization),
              0);                                             // 4
         send(client_fd, &no_tags, sizeof(no_tags), 0);       // 1
         send(client_fd, &nex_cursor, sizeof(nex_cursor), 0); // 1
-        // send(client_fd,tp_name.c_str(),sizeof(tp_name.c_str()),0);
+       
         send(client_fd, &no_tags, sizeof(no_tags), 0); // 1
-        //     send(client_fd, &no_tags, sizeof(no_tags), 0);
+        
       }
     } else if (Kaf_par.request_api_version == 16) {
       // handle APIVersion Request and Describe Topic request bit
@@ -526,10 +523,10 @@ void handle_client(int client_fd, char *buffer, int length, std::string takeout,
           int message_size = htonl(72);
           be_error_code = htons(0);
           int16_t error_code = 0x00;
-          // api_keys_length = 0x04;
+          
           int32_t session_id = 0x00;
           uint8_t response_body_size = 0x02;
-          // response_body_size = 0x00;
+        
           uint32_t fetch_id = 0x00;
 
           int16_t fetch_error_code = htons(0);
@@ -597,16 +594,15 @@ void handle_client(int client_fd, char *buffer, int length, std::string takeout,
           
         }
       } else {
-        int message_size = htonl(
-            17); // handle APIVersion Request and Describe Topic request bit
+        int message_size = htonl(17); // handle APIVersion Request and Describe Topic request bit
                  // Send response:
                  // Note: correlation_id must be sent back in network order
                 
         be_error_code = htons(0);
         int32_t error_code = 0x00;
-        // api_keys_length = 0x04;
+       
         int32_t session_id = 0x00;
-        // uint8_t response_body_size = htons(1);
+        
 
         send(client_fd, &message_size, sizeof(message_size), 0);
         send(client_fd, &be_correlation_id, sizeof(be_correlation_id), 0); // 4
